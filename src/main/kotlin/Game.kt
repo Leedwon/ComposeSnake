@@ -1,33 +1,50 @@
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
+import kotlin.random.Random
 
-class Game(private val width: Int = 50, private val height: Int = 50) {
+class Game(private val width: Int = 25, private val height: Int = 25) {
 
-    private val _map: MutableStateFlow<List<Element>> = MutableStateFlow(List(height * width) { index ->
-        val snakeHead = Element.SnakeBody(Position(2, 0), null)
-        val snakeBody1 = Element.SnakeBody(Position(1, 0), snakeHead)
-        val snakeBody2 = Element.SnakeBody(Position(0, 0), snakeBody1)
+    private val snake = Snake(Position(0, 0))
 
-        when (index) {
-            0 -> snakeBody2
-            1 -> snakeBody1
-            2 -> snakeHead
-            else -> Element.Empty
-        }
-    })
+    private val food: MutableStateFlow<Position> = MutableStateFlow(
+        Position(
+            x = Random.nextInt(1, width - 1),
+            y = Random.nextInt(1, height - 1),
+        )
+    )
 
-    val map: Flow<List<Cell>> = _map.map { map ->
-        map.map { element ->
-            when (element) {
-                Element.Empty -> Cell.Empty
-                is Element.SnakeBody -> if (element.next == null) {
-                    Cell.SnakeHead
-                } else {
+    private val tick: MutableStateFlow<Int> = MutableStateFlow(0)
+
+    val map: Flow<List<Cell>> = tick.combine(food) { _, food ->
+        val snake = snake.toList()
+        List(width * height) { index ->
+            val position = positionFromIndex(index)
+
+            when {
+                snake.contains(position) -> {
                     Cell.SnakeBody
+                }
+                position == food -> {
+                    Cell.Food
+                }
+                else -> {
+                    Cell.Empty
                 }
             }
         }
+    }
+
+    private fun Snake.toList(): List<Position> {
+        val result = mutableListOf<Position>()
+        var running: Snake.Node? = this.head
+
+        while (running != null) {
+            result.add(running.position)
+            running = running.next
+        }
+
+        return result
     }
 
     private var currentDirection = Direction.Right
@@ -44,65 +61,80 @@ class Game(private val width: Int = 50, private val height: Int = 50) {
     private fun positionFromIndex(index: Int): Position =
         Position(
             x = index % width,
-            y = index / height
+            y = index / width
         )
 
     fun tick() {
-        val currentMap = _map.value
+        snake.move(currentDirection)
 
-        val snake = getSnake(currentMap)
+        val hasEatenFood = hasEatenFood(snake, food.value)
 
-        val head = getHead(snake)
-        val body = getBody(snake)
-
-        val newHead = moveHead(head, currentDirection)
-        val newBody = moveBody(body, newHead)
-
-        val newMap = MutableList<Element>(width * height) { Element.Empty }
-
-        newMap[newHead.position.toIndex()] = newHead
-        newBody.forEach { newMap[it.position.toIndex()] = it }
-
-        _map.value = newMap
-    }
-
-    private fun getSnake(map: List<Element>) = map.filterIsInstance<Element.SnakeBody>()
-
-    private fun getHead(snake: List<Element.SnakeBody>) = snake.first { it.next == null }
-
-    private fun getBody(snake: List<Element.SnakeBody>) = snake.filter { it.next != null }
-
-    private fun moveHead(head: Element.SnakeBody, direction: Direction): Element.SnakeBody =
-        head.copy(
-            position = head.position.copy(
-                x = when (direction) {
-                    Direction.Left -> head.position.x - 1
-                    Direction.Right -> head.position.x + 1
-                    else -> head.position.x
-                },
-                y = when (direction) {
-                    Direction.Up -> head.position.y - 1
-                    Direction.Down -> head.position.y + 1
-                    else -> head.position.y
-                }
-            )
-        )
-
-    private fun moveBody(body: List<Element.SnakeBody>, newHead: Element.SnakeBody): List<Element.SnakeBody> {
-        val newBody = mutableListOf<Element.SnakeBody>()
-        body.reversed().mapIndexed { index, element ->
-            check(element.next != null) { "Snake body must have next element, only head is not having next element " }
-
-            val nextElement = element.next
-            if(index == 0) {
-                newBody.add(0, nextElement.copy(next = newHead))
-            } else {
-                newBody.add(0, nextElement.copy(next = newBody[0]))
-            }
+        if (hasEatenFood) {
+            snake.grow(currentDirection)
+            food.value = spawnFood()
         }
 
-        return newBody
+        tick.value = if (tick.value == 0) {
+            1
+        } else {
+            0
+        }
     }
+
+    private fun spawnFood(): Position {
+        val snakeList = snake.toList()
+        val randRange = width * height - snakeList.size
+
+        val randIndex = Random.nextInt(randRange)
+        val foodPosition = positionFromIndex(randIndex)
+
+        return if (snakeList.contains(foodPosition)) {
+            val foodInSnakeIndex = snakeList.indexOf(foodPosition)
+            val newIndex = if (randIndex > randRange / 2) {
+                randIndex - foodInSnakeIndex
+            } else {
+                randIndex + foodInSnakeIndex
+            }
+
+            positionFromIndex(newIndex)
+
+        } else {
+            foodPosition
+        }
+    }
+
+    private fun hasEatenFood(snake: Snake, food: Position): Boolean = snake.head.position == food
+
+    private fun Snake.move(direction: Direction) {
+        this.appendHead(moveHead(snake.head.position, direction))
+        this.removeLast()
+    }
+
+    private fun Snake.grow(currentDirection: Direction) {
+        val last = snake.toList().last()
+        snake.append(
+            when (currentDirection) {
+                Direction.Left -> last.copy(x = last.x + 1)
+                Direction.Right -> last.copy(x = last.x - 1)
+                Direction.Up -> last.copy(y = last.y + 1)
+                Direction.Down -> last.copy(y = last.y - 1)
+            }
+        )
+    }
+
+    private fun moveHead(head: Position, direction: Direction): Position =
+        head.copy(
+            x = when (direction) {
+                Direction.Left -> head.x - 1
+                Direction.Right -> head.x + 1
+                else -> head.x
+            },
+            y = when (direction) {
+                Direction.Up -> head.y - 1
+                Direction.Down -> head.y + 1
+                else -> head.y
+            }
+        )
 
     enum class Direction {
         Left,
@@ -115,14 +147,6 @@ class Game(private val width: Int = 50, private val height: Int = 50) {
         fun isVertical() = this == Up || this == Down
     }
 
-    private sealed class Element {
-        data class SnakeBody(val position: Position, val next: SnakeBody?) : Element() {
-            fun isHead(): Boolean = next == null
-        }
-
-        object Empty : Element()
-    }
-
     sealed class Cell {
         object Empty : Cell()
         object Food : Cell() //todo more type of food
@@ -130,5 +154,4 @@ class Game(private val width: Int = 50, private val height: Int = 50) {
         object SnakeHead : Cell()
     }
 
-    data class Position(val x: Int, val y: Int)
 }
