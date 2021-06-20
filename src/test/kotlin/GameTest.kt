@@ -5,6 +5,12 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
+class FoodProducerMock : FoodProducer {
+    override fun spawnFood(width: Int, height: Int, snake: Snake): Position {
+        TODO("Not yet implemented")
+    }
+}
+
 @ExperimentalCoroutinesApi
 class GameTest {
 
@@ -15,7 +21,7 @@ class GameTest {
 
     @BeforeEach
     fun setup() {
-        game = Game(width = width, height = height)
+        game = Game(width = width, height = height, FoodProducerMock()) //todo
     }
 
     private fun Game.turn(direction: Game.Direction) {

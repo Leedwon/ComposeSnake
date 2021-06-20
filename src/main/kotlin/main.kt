@@ -14,13 +14,10 @@ import androidx.compose.ui.focus.focusModifier
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.*
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 val focusRequester = FocusRequester()
 
@@ -28,7 +25,7 @@ fun main() {
     val width = 48
     val height = 32
 
-    val game = Game(width, height)
+    val game = Game(width, height, GameComponent.foodProducer)
 
     Window(size = IntSize(1200, 800), resizable = false) {
         val map = game.map.collectAsState(emptyList())

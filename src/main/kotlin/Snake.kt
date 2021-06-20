@@ -1,5 +1,15 @@
 class Snake(startingPosition: Position) {
 
+    companion object {
+        fun from(positions: List<Position>): Snake {
+            val snake = Snake(positions[0])
+            positions.drop(1).forEach { position ->
+                snake.append(position)
+            }
+            return snake
+        }
+    }
+
     private var _head: Node =
         Node(
             position = startingPosition,
@@ -39,6 +49,18 @@ class Snake(startingPosition: Position) {
             }
             last = last.next!!
         }
+    }
+
+    fun toList(): List<Position> {
+        val result = mutableListOf<Position>()
+        var running: Node? = this.head
+
+        while (running != null) {
+            result.add(running.position)
+            running = running.next
+        }
+
+        return result
     }
 
     data class Node(

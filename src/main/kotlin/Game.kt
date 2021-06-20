@@ -1,11 +1,13 @@
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlin.random.Random
 
-class Game(private val width: Int = 25, private val height: Int = 25) {
-
-    private val snake = Snake(Position(0, 0))
+class Game(
+    private val width: Int = 25, private val height: Int = 25,
+    private val foodProducer: FoodProducer
+) {
 
     private val food: MutableStateFlow<Position> = MutableStateFlow(
         Position(
@@ -14,38 +16,27 @@ class Game(private val width: Int = 25, private val height: Int = 25) {
         )
     )
 
-    private val tick: MutableStateFlow<Int> = MutableStateFlow(0)
+    private val snakeFlow: MutableStateFlow<List<Position>> = MutableStateFlow(listOf(Position(0, 0)))
 
-    val map: Flow<List<Cell>> = tick.combine(food) { _, food ->
-        val snake = snake.toList()
-        List(width * height) { index ->
-            val position = positionFromIndex(index)
+    val map: Flow<List<Cell>> = snakeFlow
+        .map { it.toList() }
+        .combine(food) { snake, food ->
+            List(width * height) { index ->
+                val position = positionFromIndex(index, width)
 
-            when {
-                snake.contains(position) -> {
-                    Cell.SnakeBody
-                }
-                position == food -> {
-                    Cell.Food
-                }
-                else -> {
-                    Cell.Empty
+                when {
+                    snake.contains(position) -> {
+                        Cell.SnakeBody
+                    }
+                    position == food -> {
+                        Cell.Food
+                    }
+                    else -> {
+                        Cell.Empty
+                    }
                 }
             }
         }
-    }
-
-    private fun Snake.toList(): List<Position> {
-        val result = mutableListOf<Position>()
-        var running: Snake.Node? = this.head
-
-        while (running != null) {
-            result.add(running.position)
-            running = running.next
-        }
-
-        return result
-    }
 
     private var currentDirection = Direction.Right
 
@@ -56,63 +47,36 @@ class Game(private val width: Int = 25, private val height: Int = 25) {
         currentDirection = newDirection
     }
 
-    private fun Position.toIndex() = this.x + this.y * width
-
-    private fun positionFromIndex(index: Int): Position =
-        Position(
-            x = index % width,
-            y = index / width
-        )
-
     fun tick() {
-        snake.move(currentDirection)
+        snakeFlow.updateValue { snakePositions ->
+            val snake = Snake.from(snakePositions)
+            snake.move(currentDirection)
 
-        val hasEatenFood = hasEatenFood(snake, food.value)
+            val hasEatenFood = hasEatenFood(snake, food.value)
 
-        if (hasEatenFood) {
-            snake.grow(currentDirection)
-            food.value = spawnFood()
-        }
-
-        tick.value = if (tick.value == 0) {
-            1
-        } else {
-            0
-        }
-    }
-
-    private fun spawnFood(): Position {
-        val snakeList = snake.toList()
-        val randRange = width * height - snakeList.size
-
-        val randIndex = Random.nextInt(randRange)
-        val foodPosition = positionFromIndex(randIndex)
-
-        return if (snakeList.contains(foodPosition)) {
-            val foodInSnakeIndex = snakeList.indexOf(foodPosition)
-            val newIndex = if (randIndex > randRange / 2) {
-                randIndex - foodInSnakeIndex
-            } else {
-                randIndex + foodInSnakeIndex
+            if (hasEatenFood) {
+                snake.grow(currentDirection)
+                food.value = foodProducer.spawnFood(
+                    width = width,
+                    height = height,
+                    snake = snake
+                )
             }
 
-            positionFromIndex(newIndex)
-
-        } else {
-            foodPosition
+            snake.toList()
         }
     }
 
     private fun hasEatenFood(snake: Snake, food: Position): Boolean = snake.head.position == food
 
     private fun Snake.move(direction: Direction) {
-        this.appendHead(moveHead(snake.head.position, direction))
+        this.appendHead(moveHead(this.head.position, direction))
         this.removeLast()
     }
 
     private fun Snake.grow(currentDirection: Direction) {
-        val last = snake.toList().last()
-        snake.append(
+        val last = this.toList().last()
+        this.append(
             when (currentDirection) {
                 Direction.Left -> last.copy(x = last.x + 1)
                 Direction.Right -> last.copy(x = last.x - 1)
