@@ -14,11 +14,11 @@ class FoodProducerImpl(private val randomNumberProvider: RandomNumberProvider) :
         )
 
         return if (snakeList.contains(foodPosition)) {
-            val foodInSnakeIndex = snakeList.size - snakeList.indexOf(foodPosition)
+            val foodInSnakeIndex = snakeList.indexOf(foodPosition)
             val newIndex = if (randIndex > randRange / 2) {
-                randIndex - foodInSnakeIndex
+                randIndex - (snakeList.size - foodInSnakeIndex)
             } else {
-                randIndex + foodInSnakeIndex
+                randIndex + foodInSnakeIndex + 1
             }
 
             positionFromIndex(

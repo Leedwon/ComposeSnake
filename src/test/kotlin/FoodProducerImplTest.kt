@@ -52,7 +52,7 @@ class FoodProducerImplTest {
     }
 
     @Test
-    fun `should correctly spawn food with random number overlapping snake`() {
+    fun `should correctly spawn food with random number overlapping snake in second half of the map`() {
         createFoodProducer()
 
         val foodPosition = Position(4, 3)
@@ -68,6 +68,28 @@ class FoodProducerImplTest {
         )
 
         val expectedFoodPosition = Position(1, 3)
+        val actualFoodPosition = foodProducer.spawnFood(width, height, snake)
+
+        assertEquals(expectedFoodPosition, actualFoodPosition)
+    }
+
+    @Test
+    fun `should correctly spawn food with random number overlapping snake in first half of the map`() {
+        createFoodProducer()
+
+        val foodPosition = Position(5, 0)
+
+        randomNumberProviderMock.mockNextRandom(foodPosition.toIndex(width))
+
+        val snake = createSnake(
+            listOf(
+                Position(5, 0),
+                Position(5, 1),
+                Position(5, 2),
+            )
+        )
+
+        val expectedFoodPosition = Position(6, 0)
         val actualFoodPosition = foodProducer.spawnFood(width, height, snake)
 
         assertEquals(expectedFoodPosition, actualFoodPosition)

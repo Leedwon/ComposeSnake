@@ -6,17 +6,15 @@ import kotlin.random.Random
 
 class Game(
     private val width: Int = 25, private val height: Int = 25,
-    private val foodProducer: FoodProducer
+    private val foodProducer: FoodProducer,
+    initialFoodPosition: Position = Position(width / 2, height / 2)
 ) {
 
-    private val food: MutableStateFlow<Position> = MutableStateFlow(
-        Position(
-            x = Random.nextInt(1, width - 1),
-            y = Random.nextInt(1, height - 1),
-        )
-    )
+    private val food: MutableStateFlow<Position> = MutableStateFlow(initialFoodPosition)
 
     private val snakeFlow: MutableStateFlow<List<Position>> = MutableStateFlow(listOf(Position(0, 0)))
+    private val snakeDeadFlow: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    val snakeDead: Flow<Boolean> = snakeDeadFlow
 
     val map: Flow<List<Cell>> = snakeFlow
         .map { it.toList() }
@@ -39,17 +37,25 @@ class Game(
         }
 
     private var currentDirection = Direction.Right
+    private var canDirectionBeChanged = true
 
     fun onDirectionChanged(newDirection: Direction) {
-        if (currentDirection.isHorizontal() && newDirection.isHorizontal() || currentDirection.isVertical() && newDirection.isVertical()) {
+        if (!canDirectionBeChanged || currentDirection.isHorizontal() && newDirection.isHorizontal() || currentDirection.isVertical() && newDirection.isVertical()) {
             return
         }
+        canDirectionBeChanged = false
         currentDirection = newDirection
     }
 
     fun tick() {
+        if(snakeDeadFlow.value) return
         snakeFlow.updateValue { snakePositions ->
             val snake = Snake.from(snakePositions)
+
+            val isSnakeDead = snake.isDead(currentDirection)
+            snakeDeadFlow.value = isSnakeDead
+            if (isSnakeDead) return@updateValue snake.toList()
+
             snake.move(currentDirection)
 
             val hasEatenFood = hasEatenFood(snake, food.value)
@@ -65,9 +71,29 @@ class Game(
 
             snake.toList()
         }
+        canDirectionBeChanged = true
     }
 
     private fun hasEatenFood(snake: Snake, food: Position): Boolean = snake.head.position == food
+
+    private fun Snake.isDead(direction: Direction): Boolean {
+        val newHead = moveHead(this.head.position, direction)
+
+        val isOutOfMap = newHead.x !in (0 until width) || newHead.y !in (0 until height)
+        return if (isOutOfMap) {
+            true
+        } else {
+            var running = this.head
+            while (running.next != null) {
+                if(running.position == newHead){
+                    return true
+                }
+                running = running.next!!
+            }
+
+            return false
+        }
+    }
 
     private fun Snake.move(direction: Direction) {
         this.appendHead(moveHead(this.head.position, direction))
@@ -115,7 +141,6 @@ class Game(
         object Empty : Cell()
         object Food : Cell() //todo more type of food
         object SnakeBody : Cell()
-        object SnakeHead : Cell()
     }
 
 }

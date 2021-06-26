@@ -27,7 +27,10 @@ fun main() {
 
     val game = Game(width, height, GameComponent.foodProducer)
 
-    Window(size = IntSize(1200, 800), resizable = false) {
+    val cellColor0 = Color.LightGray.copy(alpha = 0.8f)
+    val cellColor1 = Color.LightGray.copy(alpha = 0.4f)
+
+    Window(size = IntSize(1400, 1000), resizable = false) {
         val map = game.map.collectAsState(emptyList())
 
         MaterialTheme {
@@ -60,10 +63,11 @@ fun main() {
 
                 val chunked = map.value.chunked(width)
                 LazyColumn {
-                    items(chunked) { row ->
+                    items(chunked.size) { rowIndex ->
+                        val row = chunked[rowIndex]
                         LazyRow {
-                            items(row) { cell ->
-                                when (cell) {
+                            items(row.size) { cellIndex ->
+                                when (row[cellIndex]) {
                                     is Game.Cell.SnakeBody -> {
                                         Cell(25.dp, Color.Green)
                                     }
@@ -71,7 +75,24 @@ fun main() {
                                         Cell(25.dp, Color.Red)
                                     }
                                     else -> {
-                                        Cell(25.dp, Color.White)
+                                        val color = if (rowIndex % 2 == 0) {
+                                            if (cellIndex % 2 == 0) {
+                                                cellColor0
+                                            } else {
+                                                cellColor1
+                                            }
+                                        } else {
+                                            if (cellIndex % 2 == 0) {
+                                                cellColor1
+                                            } else {
+                                                cellColor0
+                                            }
+                                        }
+
+                                        Cell(
+                                            25.dp,
+                                            color
+                                        )
                                     }
                                 }
                             }
