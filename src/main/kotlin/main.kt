@@ -1,10 +1,10 @@
+
 import androidx.compose.desktop.Window
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,11 +27,6 @@ fun main() {
     val height = 20
 
     val game = Game(width, height, GameComponent.foodProducer)
-
-    val cellColor0 = Color.LightGray.copy(alpha = 0.8f)
-    val cellColor1 = Color.LightGray.copy(alpha = 0.4f)
-    val bodyColor = Color(0xff006400)
-    val headColor = Color(0xffadff2f)
 
 
     Window(size = IntSize(1400, 800), resizable = false) {
@@ -58,6 +53,7 @@ fun main() {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(color = Color.DarkGray)
                     .focusable()
                     .focusRequester(focusRequester)
                     .focusModifier()
@@ -87,17 +83,17 @@ fun main() {
                             items(row.size) { cellIndex ->
                                 when (val cell = row[cellIndex]) {
                                     is Game.Cell.Snake.Head -> {
-                                        Cell(25.dp, headColor)
+                                        Cell(25.dp, GameColors.headColor)
                                     }
                                     is Game.Cell.Snake.Body -> {
-                                        Cell(25.dp, bodyColor)
+                                        Cell(25.dp, GameColors.bodyColor)
                                     }
                                     is Game.Cell.Food -> {
                                         val color = when (cell.type) {
-                                            Game.FoodType.Normal -> Color.Red
-                                            Game.FoodType.Accelerate -> Color.Magenta
-                                            Game.FoodType.Decelerate -> Color.Blue
-                                            Game.FoodType.Reverse -> Color.Yellow
+                                            Game.FoodType.Normal -> GameColors.normalFoodColor
+                                            Game.FoodType.Accelerate -> GameColors.fasterFoodColor
+                                            Game.FoodType.Decelerate -> GameColors.slowerFoodColor
+                                            Game.FoodType.Reverse -> GameColors.reverseFoodColor
                                         }
 
                                         Cell(25.dp, color)
@@ -105,10 +101,10 @@ fun main() {
                                     else -> {
                                         val color = when {
                                             rowIndex.isEven() -> {
-                                                if (cellIndex.isEven()) cellColor0 else cellColor1
+                                                if (cellIndex.isEven()) GameColors.cellColor0 else GameColors.cellColor1
                                             }
                                             else -> {
-                                                if (cellIndex.isEven()) cellColor1 else cellColor0
+                                                if (cellIndex.isEven()) GameColors.cellColor1 else GameColors.cellColor0
                                             }
                                         }
 
