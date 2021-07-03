@@ -3,6 +3,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 
 // TODO: 26/06/2021 test gameSpeed implement and test reverse behaviour
+// TODO: 7/3/2021 instead of many flows use only one with game settings or game state
 class Game(
     private val width: Int = 25, private val height: Int = 25,
     private val foodProducer: FoodProducer,
@@ -80,23 +81,7 @@ class Game(
             return@updateValue if (hasEatenFood && currentFood is Food.Reverse) {
                 val reversedSnake = snake.toList().reversed()
 
-                val head = reversedSnake[0]
-                val second = reversedSnake[1]
-
-                currentDirection =
-                    if (head.x == second.x) {
-                        if (head.y > second.y) {
-                            Direction.Down
-                        } else {
-                            Direction.Up
-                        }
-                    } else {
-                        if (head.x > second.x) {
-                            Direction.Right
-                        } else {
-                            Direction.Left
-                        }
-                    }
+                currentDirection = getCurrentDirectionForSnake(reversedSnake)
 
                 reversedSnake
             } else {
@@ -104,6 +89,25 @@ class Game(
             }
         }
         canDirectionBeChanged = true
+    }
+
+    private fun getCurrentDirectionForSnake(snake: List<Position>): Direction {
+        val head = snake[0]
+        val firstBodyPart = snake[1]
+
+        return if (head.x == firstBodyPart.x) {
+            if (head.y > firstBodyPart.y) {
+                Direction.Down
+            } else {
+                Direction.Up
+            }
+        } else {
+            if (head.x > firstBodyPart.x) {
+                Direction.Right
+            } else {
+                Direction.Left
+            }
+        }
     }
 
     private fun updateGameSpeed(eatenFood: Food) {
@@ -123,11 +127,12 @@ class Game(
 
     private fun hasEatenFood(snake: Snake, food: Position): Boolean = snake.head.position == food
 
+    private fun Position.isOutOfMap(): Boolean = this.x !in (0 until width) || this.y !in (0 until height)
+
     private fun Snake.isDead(direction: Direction): Boolean {
         val newHead = moveHead(this.head.position, direction)
 
-        val isOutOfMap = newHead.x !in (0 until width) || newHead.y !in (0 until height)
-        return if (isOutOfMap) {
+        return if (newHead.isOutOfMap()) {
             true
         } else {
             var running = this.head
@@ -161,12 +166,12 @@ class Game(
                 }
             )
         } else {
-            val penultimate = snakeList[snakeList.lastIndex - 1]
+            val oneBeforeLast = snakeList[snakeList.lastIndex - 1]
             this.append(
-                if (last.x == penultimate.x) {
-                    if (last.y > penultimate.y) last.copy(y = last.y + 1) else last.copy(y = last.y - 1)
+                if (last.x == oneBeforeLast.x) {
+                    if (last.y > oneBeforeLast.y) last.copy(y = last.y + 1) else last.copy(y = last.y - 1)
                 } else {
-                    if (last.x > penultimate.x) last.copy(x = last.x + 1) else last.copy(x = last.x - 1)
+                    if (last.x > oneBeforeLast.x) last.copy(x = last.x + 1) else last.copy(x = last.x - 1)
                 }
             )
         }
