@@ -18,27 +18,39 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.map
 
 val focusRequester = FocusRequester()
 
 fun main() {
     val width = 48
-    val height = 32
+    val height = 20
 
     val game = Game(width, height, GameComponent.foodProducer)
 
     val cellColor0 = Color.LightGray.copy(alpha = 0.8f)
     val cellColor1 = Color.LightGray.copy(alpha = 0.4f)
+    val bodyColor = Color(0xff006400)
+    val headColor = Color(0xffadff2f)
 
-    Window(size = IntSize(1400, 1000), resizable = false) {
+
+    Window(size = IntSize(1400, 800), resizable = false) {
         val map = game.map.collectAsState(emptyList())
+        val snakeDead = game.snakeDead.collectAsState(false)
+        val gameSpeed = game.gameSpeed.map {
+            when (it) {
+                Game.GameSpeed.Normal -> 120L
+                Game.GameSpeed.Faster -> 60L
+                Game.GameSpeed.Slower -> 180L
+            }
+        }.collectAsState(120L)
 
         MaterialTheme {
             LaunchedEffect(Unit) {
                 focusRequester.requestFocus()
 
                 while (true) {
-                    delay(120)
+                    delay(gameSpeed.value)
                     game.tick()
                 }
             }
@@ -55,6 +67,12 @@ fun main() {
                             Key.S -> game.onDirectionChanged(Game.Direction.Down).let { true }
                             Key.A -> game.onDirectionChanged(Game.Direction.Left).let { true }
                             Key.D -> game.onDirectionChanged(Game.Direction.Right).let { true }
+                            Key.Spacebar -> if (snakeDead.value) {
+                                game.onRestartGame()
+                                true
+                            } else {
+                                false
+                            }
                             else -> false
                         }
                     },
@@ -67,25 +85,30 @@ fun main() {
                         val row = chunked[rowIndex]
                         LazyRow {
                             items(row.size) { cellIndex ->
-                                when (row[cellIndex]) {
-                                    is Game.Cell.SnakeBody -> {
-                                        Cell(25.dp, Color.Green)
+                                when (val cell = row[cellIndex]) {
+                                    is Game.Cell.Snake.Head -> {
+                                        Cell(25.dp, headColor)
+                                    }
+                                    is Game.Cell.Snake.Body -> {
+                                        Cell(25.dp, bodyColor)
                                     }
                                     is Game.Cell.Food -> {
-                                        Cell(25.dp, Color.Red)
+                                        val color = when (cell.type) {
+                                            Game.FoodType.Normal -> Color.Red
+                                            Game.FoodType.Accelerate -> Color.Magenta
+                                            Game.FoodType.Decelerate -> Color.Blue
+                                            Game.FoodType.Reverse -> Color.Yellow
+                                        }
+
+                                        Cell(25.dp, color)
                                     }
                                     else -> {
-                                        val color = if (rowIndex % 2 == 0) {
-                                            if (cellIndex % 2 == 0) {
-                                                cellColor0
-                                            } else {
-                                                cellColor1
+                                        val color = when {
+                                            rowIndex.isEven() -> {
+                                                if (cellIndex.isEven()) cellColor0 else cellColor1
                                             }
-                                        } else {
-                                            if (cellIndex % 2 == 0) {
-                                                cellColor1
-                                            } else {
-                                                cellColor0
+                                            else -> {
+                                                if (cellIndex.isEven()) cellColor1 else cellColor0
                                             }
                                         }
 

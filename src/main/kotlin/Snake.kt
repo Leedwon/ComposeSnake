@@ -51,6 +51,8 @@ class Snake(startingPosition: Position) {
         }
     }
 
+    fun reversed(): Snake = Snake.from(this.toList().reversed())
+
     fun toList(): List<Position> {
         val result = mutableListOf<Position>()
         var running: Node? = this.head
