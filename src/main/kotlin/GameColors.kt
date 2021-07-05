@@ -9,4 +9,5 @@ object GameColors {
     val fasterFoodColor = Color(0xffAD23AB)
     val slowerFoodColor = Color(0xffB9E3E3)
     val reverseFoodColor = Color(0xffCBCD40)
+    val goThroughWallsColor = Color.Black
 }

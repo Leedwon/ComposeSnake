@@ -5,5 +5,5 @@ sealed class Food {
     data class Accelerate(override val position: Position) : Food()
     data class Decelerate(override val position: Position) : Food()
     data class Reverse(override val position: Position) : Food()
-    // TODO: 26/06/2021 add go through walls
+    data class GoThroughWalls(override val position: Position) : Food()
 }

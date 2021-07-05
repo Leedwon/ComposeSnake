@@ -48,7 +48,7 @@ class FoodProducerImplTest {
 
         val actual = foodProducer.spawnFood(width, height, snake)
 
-        assertEquals(foodPosition, actual)
+        assertEquals(Food.Normal(foodPosition), actual)
     }
 
     @Test
@@ -70,7 +70,7 @@ class FoodProducerImplTest {
         val expectedFoodPosition = Position(1, 3)
         val actualFoodPosition = foodProducer.spawnFood(width, height, snake)
 
-        assertEquals(expectedFoodPosition, actualFoodPosition)
+        assertEquals(Food.Normal(expectedFoodPosition), actualFoodPosition)
     }
 
     @Test
@@ -92,6 +92,6 @@ class FoodProducerImplTest {
         val expectedFoodPosition = Position(6, 0)
         val actualFoodPosition = foodProducer.spawnFood(width, height, snake)
 
-        assertEquals(expectedFoodPosition, actualFoodPosition)
+        assertEquals(Food.Normal(expectedFoodPosition), actualFoodPosition)
     }
 }

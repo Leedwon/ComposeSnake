@@ -42,6 +42,7 @@ class Game(
         }
 
     private var currentDirection = Direction.Right
+    private var canGoThroughWalls = false
     private var canDirectionBeChanged = true
 
     fun onDirectionChanged(newDirection: Direction) {
@@ -57,33 +58,26 @@ class Game(
         snakeFlow.updateValue { snakePositions ->
             val snake = Snake.from(snakePositions)
 
-            val isSnakeDead = snake.isDead(currentDirection)
+            val isSnakeDead = snake.isDead(currentDirection, canGoThroughWalls)
             snakeDeadFlow.value = isSnakeDead
             if (isSnakeDead) return@updateValue snake.toList()
 
-            snake.move(currentDirection)
+            snake.move(currentDirection, canGoThroughWalls)
 
             val currentFood = food.value
 
             val hasEatenFood = hasEatenFood(snake, currentFood.position)
             if (hasEatenFood) {
-                snake.grow(currentDirection).also {
-                    updateGameSpeed(currentFood)
-                }
-
-                food.value = foodProducer.spawnFood(
-                    width = width,
-                    height = height,
-                    snake = snake
-                )
+                snake.grow(currentDirection)
+                updateGameSpeed(currentFood)
+                updateGoThroughWalls(currentFood)
+                spawnFood(snake)
             }
 
             return@updateValue if (hasEatenFood && currentFood is Food.Reverse) {
-                val reversedSnake = snake.toList().reversed()
-
-                currentDirection = getCurrentDirectionForSnake(reversedSnake)
-
-                reversedSnake
+                snake.toList().reversed().also { reversedSnake ->
+                    currentDirection = getMovingDirectionFor(reversedSnake)
+                }
             } else {
                 snake.toList()
             }
@@ -91,9 +85,17 @@ class Game(
         canDirectionBeChanged = true
     }
 
-    private fun getCurrentDirectionForSnake(snake: List<Position>): Direction {
-        val head = snake[0]
-        val firstBodyPart = snake[1]
+    private fun spawnFood(snake: Snake) {
+        food.value = foodProducer.spawnFood(
+            width = width,
+            height = height,
+            snake = snake
+        )
+    }
+
+    private fun getMovingDirectionFor(snakePositions: List<Position>): Direction {
+        val head = snakePositions[0]
+        val firstBodyPart = snakePositions[1]
 
         return if (head.x == firstBodyPart.x) {
             if (head.y > firstBodyPart.y) {
@@ -111,30 +113,34 @@ class Game(
     }
 
     private fun updateGameSpeed(eatenFood: Food) {
-        when (eatenFood) {
+        gameSpeedFlow.value = when (eatenFood) {
             is Food.Accelerate -> {
-                gameSpeedFlow.value = GameSpeed.Faster
+                GameSpeed.Faster
             }
             is Food.Decelerate -> {
-                gameSpeedFlow.value = GameSpeed.Slower
+                GameSpeed.Slower
             }
             is Food.Normal,
+            is Food.GoThroughWalls,
             is Food.Reverse -> {
-                gameSpeedFlow.value = GameSpeed.Normal
+                GameSpeed.Normal
             }
         }
+    }
+
+    private fun updateGoThroughWalls(eatenFood: Food) {
+        canGoThroughWalls = eatenFood is Food.GoThroughWalls
     }
 
     private fun hasEatenFood(snake: Snake, food: Position): Boolean = snake.head.position == food
 
     private fun Position.isOutOfMap(): Boolean = this.x !in (0 until width) || this.y !in (0 until height)
 
-    private fun Snake.isDead(direction: Direction): Boolean {
-        val newHead = moveHead(this.head.position, direction)
-
-        return if (newHead.isOutOfMap()) {
+    private fun Snake.isDead(direction: Direction, canGoTroughWalls: Boolean): Boolean {
+        return if (!canGoTroughWalls && this.willHitWall(direction)) {
             true
         } else {
+            val newHead = moveHead(this.head.position, direction)
             var running = this.head
             while (running.next != null) {
                 if (running.position == newHead) {
@@ -147,9 +153,29 @@ class Game(
         }
     }
 
-    private fun Snake.move(direction: Direction) {
-        this.appendHead(moveHead(this.head.position, direction))
+    private fun Snake.move(direction: Direction, canGoTroughWalls: Boolean) {
+        if (canGoTroughWalls && this.willHitWall(direction)) {
+            this.appendHead(moveHeadThroughWall(this.head.position, direction))
+        } else {
+            this.appendHead(moveHead(this.head.position, direction))
+        }
         this.removeLast()
+    }
+
+    private fun Snake.willHitWall(direction: Direction): Boolean {
+        val headPosition = this.head.position
+        return headPosition.copy(
+            x = when (direction) {
+                Direction.Left -> headPosition.x - 1
+                Direction.Right -> headPosition.x + 1
+                else -> headPosition.x
+            },
+            y = when (direction) {
+                Direction.Up -> headPosition.y - 1
+                Direction.Down -> headPosition.y + 1
+                else -> headPosition.y
+            }
+        ).isOutOfMap()
     }
 
     private fun Snake.grow(currentDirection: Direction) {
@@ -191,12 +217,27 @@ class Game(
             }
         )
 
+    private fun moveHeadThroughWall(head: Position, direction: Direction): Position =
+        head.copy(
+            x = when (direction) {
+                Direction.Left -> head.x - 1 + width
+                Direction.Right -> head.x + 1 - width
+                else -> head.x
+            },
+            y = when (direction) {
+                Direction.Up -> head.y - 1 + height
+                Direction.Down -> head.y + 1 - height
+                else -> head.y
+            }
+        )
+
     fun onRestartGame() {
         snakeFlow.value = initialSnake
         currentDirection = Direction.Right
         food.value = Food.Normal(initialFoodPosition)
         gameSpeedFlow.value = GameSpeed.Normal
         snakeDeadFlow.value = false
+        canGoThroughWalls = false
     }
 
     enum class GameSpeed {
@@ -214,13 +255,22 @@ class Game(
         fun isHorizontal() = this == Left || this == Right
 
         fun isVertical() = this == Up || this == Down
+
+        fun getOppositeDirection(): Direction =
+            when (this) {
+                Left -> Right
+                Right -> Left
+                Up -> Down
+                Down -> Up
+            }
     }
 
     enum class FoodType {
         Normal,
         Accelerate,
         Decelerate,
-        Reverse
+        Reverse,
+        GoThroughWalls
     }
 
     sealed class Cell {
@@ -238,6 +288,7 @@ class Game(
             is Food.Decelerate -> Cell.Food(FoodType.Decelerate)
             is Food.Normal -> Cell.Food(FoodType.Normal)
             is Food.Reverse -> Cell.Food(FoodType.Reverse)
+            is Food.GoThroughWalls -> Cell.Food(FoodType.GoThroughWalls)
         }
     }
 }

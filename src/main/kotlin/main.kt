@@ -59,9 +59,13 @@ fun main() {
                     .focusModifier()
                     .onKeyEvent {
                         when (it.key) {
+                            Key.DirectionUp,
                             Key.W -> game.onDirectionChanged(Game.Direction.Up).let { true }
+                            Key.DirectionDown,
                             Key.S -> game.onDirectionChanged(Game.Direction.Down).let { true }
+                            Key.DirectionLeft,
                             Key.A -> game.onDirectionChanged(Game.Direction.Left).let { true }
+                            Key.DirectionRight,
                             Key.D -> game.onDirectionChanged(Game.Direction.Right).let { true }
                             Key.Spacebar -> if (snakeDead.value) {
                                 game.onRestartGame()
@@ -94,6 +98,7 @@ fun main() {
                                             Game.FoodType.Accelerate -> GameColors.fasterFoodColor
                                             Game.FoodType.Decelerate -> GameColors.slowerFoodColor
                                             Game.FoodType.Reverse -> GameColors.reverseFoodColor
+                                            Game.FoodType.GoThroughWalls -> GameColors.goThroughWallsColor
                                         }
 
                                         Cell(25.dp, color)

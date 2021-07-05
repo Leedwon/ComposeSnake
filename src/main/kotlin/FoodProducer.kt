@@ -31,10 +31,11 @@ class FoodProducerImpl(private val randomNumberProvider: RandomNumberProvider) :
         }
 
         return when(randomNumberProvider.getRandomNumber(100)) {
-            in 0 until 50 -> Food.Normal(position)
-            in 50 until 66 -> Food.Accelerate(position)
-            in 66 until 82 -> Food.Decelerate(position)
-            else -> Food.Reverse(position)
+            in 0 until 40 -> Food.Normal(position)
+            in 40 until 55 -> Food.Accelerate(position)
+            in 55 until 70 -> Food.Decelerate(position)
+            in 70 until 85 -> Food.Reverse(position)
+            else -> Food.GoThroughWalls(position)
         }
 
     }

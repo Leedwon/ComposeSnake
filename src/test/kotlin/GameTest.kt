@@ -521,7 +521,7 @@ class GameTest {
         runBlockingTest {
             foodProducerMock.mockFoodPositions(
                 listOf(
-                    Food.Reverse(Position(2, 2)),
+                    Food.Reverse(Position(2, 3)),
                     Food.Reverse(Position(0, 0)),
                 )
             )
@@ -531,14 +531,17 @@ class GameTest {
             game.turn(Game.Direction.Right) //head 2,0
             game.turn(Game.Direction.Down)  //head 2,1
             game.turn(Game.Direction.Down)  //head 2,2
+            game.turn(Game.Direction.Down)  //head 2,3
 
             game.assertAtPosition(2, 1, Game.Cell.Snake.Head)
             game.assertAtPosition(2, 2, Game.Cell.Snake.Body)
+            game.assertAtPosition(2, 3, Game.Cell.Snake.Body)
 
             game.tick()
 
             game.assertAtPosition(2, 0, Game.Cell.Snake.Head)
             game.assertAtPosition(2, 1, Game.Cell.Snake.Body)
+            game.assertAtPosition(2, 2, Game.Cell.Snake.Body)
         }
 
     @Test
@@ -553,15 +556,19 @@ class GameTest {
 
             game.turn(Game.Direction.Right)
             game.turn(Game.Direction.Down)
+            game.turn(Game.Direction.Down)
             game.turn(Game.Direction.Right)
             game.turn(Game.Direction.Up)
+            game.turn(Game.Direction.Up)
 
-            game.assertAtPosition(2, 1, Game.Cell.Snake.Head)
+            game.assertAtPosition(2, 2, Game.Cell.Snake.Head)
+            game.assertAtPosition(2, 1, Game.Cell.Snake.Body)
             game.assertAtPosition(2, 0, Game.Cell.Snake.Body)
 
             game.tick()
 
-            game.assertAtPosition(2, 2, Game.Cell.Snake.Head)
+            game.assertAtPosition(2, 3, Game.Cell.Snake.Head)
+            game.assertAtPosition(2, 2, Game.Cell.Snake.Body)
             game.assertAtPosition(2, 1, Game.Cell.Snake.Body)
         }
 
@@ -579,5 +586,25 @@ class GameTest {
         assertFalse(game.snakeDead.first())
         game.assertAtPosition(0, 0, Game.Cell.Snake.Head)
         game.assertAtPosition(1, 0, Game.Cell.Food(Game.FoodType.Normal))
+    }
+
+    @Test
+    fun `snake should go through wall`() = runBlockingTest {
+        foodProducerMock.mockFoodPositions(
+            listOf(Food.GoThroughWalls(Position(2, 0)))
+        )
+        createGame(initialFoodPosition = Position(1,0))
+
+        repeat(9) {
+            game.turn(Game.Direction.Right)
+        }
+
+        game.assertAtPosition(9,0, Game.Cell.Snake.Head)
+
+        game.turn(Game.Direction.Right)
+        game.assertAtPosition(0,0, Game.Cell.Snake.Head)
+
+        game.tick()
+        game.assertAtPosition(1,0, Game.Cell.Snake.Head)
     }
 }
