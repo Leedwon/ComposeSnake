@@ -1,4 +1,4 @@
-#ComposeSnake 🐍
+# ComposeSnake 🐍
 
 Snake game built with Compose for Desktop.
 
@@ -23,7 +23,7 @@ spacebar - restart game when you died
 
 ![food_reverse](images/food_reverse.png) reverse snake 🔄
 
-![food_go_through_walls](images/food_go_through_walls.png) snake can now go through walls. 🚀
+![food_go_through_walls](images/food_go_through_walls.png) snake can now go through walls 🚀
 
 ### Gameplay:
 
