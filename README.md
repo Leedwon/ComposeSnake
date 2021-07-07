@@ -11,7 +11,7 @@ Snake game built with Compose for Desktop.
 
 ➡️ / D - right
 
-spacebar - restart game when you died
+spacebar - restart game when snake died
 
 ### Food types:
 
