@@ -13,6 +13,9 @@ class Game(
     private val gameSpeedFlow: MutableStateFlow<GameSpeed> = MutableStateFlow(GameSpeed.Normal)
     val gameSpeed: Flow<GameSpeed> = gameSpeedFlow
 
+    private val scoreFlow: MutableStateFlow<Int> = MutableStateFlow(0)
+    val score: Flow<Int> = scoreFlow
+
     private val initialSnake = listOf(Position(0, 0))
 
     private val snakeFlow: MutableStateFlow<List<Position>> = MutableStateFlow(initialSnake)
@@ -70,6 +73,7 @@ class Game(
                 updateGameSpeed(food)
                 updateCanGoThroughWalls(food)
                 spawnFood(snake)
+                updateGameScore()
             }
 
             return@updateValue if (hasEatenFood && food is Food.Reverse) {
@@ -126,6 +130,10 @@ class Game(
 
     private fun updateCanGoThroughWalls(eatenFood: Food) {
         canGoThroughWalls = eatenFood is Food.GoThroughWalls
+    }
+
+    private fun updateGameScore() {
+        scoreFlow.value++
     }
 
     private fun hasEatenFood(snake: Snake, food: Food): Boolean = snake.head.position == food.position
@@ -228,6 +236,7 @@ class Game(
         gameSpeedFlow.value = GameSpeed.Normal
         snakeDeadFlow.value = false
         canGoThroughWalls = false
+        scoreFlow.value = 0
     }
 
     enum class GameSpeed {

@@ -1,4 +1,3 @@
-
 import androidx.compose.desktop.Window
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
@@ -6,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -17,6 +17,7 @@ import androidx.compose.ui.input.key.*
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
 
@@ -39,6 +40,7 @@ fun main() {
                 Game.GameSpeed.Slower -> 180L
             }
         }.collectAsState(120L)
+        val gameScore = game.score.collectAsState(0)
 
         MaterialTheme {
             LaunchedEffect(Unit) {
@@ -81,6 +83,7 @@ fun main() {
 
                 val chunked = map.value.chunked(width)
                 LazyColumn {
+                    item { Text(text = "score = ${gameScore.value}", fontSize = 24.sp) }
                     items(chunked.size) { rowIndex ->
                         val row = chunked[rowIndex]
                         LazyRow {
