@@ -3,14 +3,22 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class RandomNumberProviderMock : RandomNumberProvider {
-    private var nextRandom: Int = 0
+    private var nextRandomNumbers: List<Int> = listOf(0)
+
+    private var index = 0
 
     fun mockNextRandom(nextRandomInt: Int) {
-        nextRandom = nextRandomInt
+        index = 0
+        nextRandomNumbers = listOf(nextRandomInt)
+    }
+
+    fun mockNextRandoms(nextRandomInts: List<Int>) {
+        index = 0
+        nextRandomNumbers = nextRandomInts
     }
 
     override fun getRandomNumber(until: Int): Int {
-        return nextRandom
+        return nextRandomNumbers.getOrNull(index++) ?: nextRandomNumbers.last()
     }
 }
 
@@ -48,7 +56,7 @@ class FoodProducerImplTest {
 
         val actual = foodProducer.spawnFood(width, height, snake)
 
-        assertEquals(foodPosition, actual)
+        assertEquals(Food.Normal(foodPosition), actual)
     }
 
     @Test
@@ -70,7 +78,7 @@ class FoodProducerImplTest {
         val expectedFoodPosition = Position(1, 3)
         val actualFoodPosition = foodProducer.spawnFood(width, height, snake)
 
-        assertEquals(expectedFoodPosition, actualFoodPosition)
+        assertEquals(Food.Normal(expectedFoodPosition), actualFoodPosition)
     }
 
     @Test
@@ -92,6 +100,114 @@ class FoodProducerImplTest {
         val expectedFoodPosition = Position(6, 0)
         val actualFoodPosition = foodProducer.spawnFood(width, height, snake)
 
-        assertEquals(expectedFoodPosition, actualFoodPosition)
+        assertEquals(Food.Normal(expectedFoodPosition), actualFoodPosition)
+    }
+
+    @Test
+    fun `should correctly spawn accelerate food`() {
+        createFoodProducer()
+
+        val foodPosition = Position(3, 0)
+        val snakePosition = Position(1, 0)
+        val snake = Snake(snakePosition)
+
+        randomNumberProviderMock.mockNextRandoms(listOf(foodPosition.toIndex(width), 50))
+
+        val actual = foodProducer.spawnFood(width, height, snake)
+
+        assertEquals(Food.Accelerate(foodPosition), actual)
+    }
+
+    @Test
+    fun `should correctly spawn decelerate food`() {
+        createFoodProducer()
+
+        val foodPosition = Position(3, 0)
+        val snakePosition = Position(1, 0)
+        val snake = Snake(snakePosition)
+
+        randomNumberProviderMock.mockNextRandoms(listOf(foodPosition.toIndex(width), 65))
+
+        val actual = foodProducer.spawnFood(width, height, snake)
+
+        assertEquals(Food.Decelerate(foodPosition), actual)
+    }
+
+    @Test
+    fun `should correctly spawn reverse food`() {
+        createFoodProducer()
+
+        val foodPosition = Position(3, 0)
+        val snakePosition = Position(1, 0)
+        val snake = Snake(snakePosition)
+
+        randomNumberProviderMock.mockNextRandoms(listOf(foodPosition.toIndex(width), 75))
+
+        val actual = foodProducer.spawnFood(width, height, snake)
+
+        assertEquals(Food.Reverse(foodPosition), actual)
+    }
+
+    @Test
+    fun `should correctly spawn GoThroughWalls food`() {
+        createFoodProducer()
+
+        val foodPosition = Position(3, 0)
+        val snakePosition = Position(1, 0)
+        val snake = Snake(snakePosition)
+
+        randomNumberProviderMock.mockNextRandoms(listOf(foodPosition.toIndex(width), 90))
+
+        val actual = foodProducer.spawnFood(width, height, snake)
+
+        assertEquals(Food.GoThroughWalls(foodPosition), actual)
+    }
+
+    @Test
+    fun `should correctly spawn food when there is only one place available in last map half`() {
+        createFoodProducer()
+
+        val width = 2
+        val height = 2
+
+        val expectedFoodPosition = Position(1, 1)
+
+        val snake = createSnake(
+            listOf(
+                Position(0, 0),
+                Position(1, 0),
+                Position(0, 1)
+            )
+        )
+
+        randomNumberProviderMock.mockNextRandom(0)
+
+        val actual = foodProducer.spawnFood(width, height, snake)
+
+        assertEquals(Food.Normal(expectedFoodPosition), actual)
+    }
+
+    @Test
+    fun `should correctly spawn food when there is only one place available in first map half`() {
+        createFoodProducer()
+
+        val width = 2
+        val height = 2
+
+        val expectedFoodPosition = Position(0, 0)
+
+        val snake = createSnake(
+            listOf(
+                Position(1, 0),
+                Position(1, 1),
+                Position(2, 0)
+            )
+        )
+
+        randomNumberProviderMock.mockNextRandom(0)
+
+        val actual = foodProducer.spawnFood(width, height, snake)
+
+        assertEquals(Food.Normal(expectedFoodPosition), actual)
     }
 }

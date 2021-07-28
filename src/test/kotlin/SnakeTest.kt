@@ -101,4 +101,26 @@ class SnakeTest {
         )
     }
 
+    @Test
+    fun `should return correctly reversed snake`() {
+        val list = listOf(
+            Position(0,0),
+            Position(1,0),
+            Position(2,0),
+            Position(3,0),
+            Position(4,0),
+        )
+
+        val expected = Snake(Position(0,0))
+        expected.appendHead(Position(1,0))
+        expected.appendHead(Position(2,0))
+        expected.appendHead(Position(3,0))
+        expected.appendHead(Position(4,0))
+
+        assertEquals(
+            Snake.from(list).toList(),
+            expected.reversed().toList()
+        )
+    }
+
 }
