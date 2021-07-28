@@ -18,7 +18,7 @@ class FoodProducerImpl(private val randomNumberProvider: RandomNumberProvider) :
             val newIndex = if (randIndex > randRange / 2) {
                 randIndex - (snakeList.size - foodInSnakeIndex)
             } else {
-                randIndex + foodInSnakeIndex + 1
+                randIndex + (snakeList.size - foodInSnakeIndex)
             }
 
             positionFromIndex(

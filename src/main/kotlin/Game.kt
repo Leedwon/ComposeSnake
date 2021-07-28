@@ -2,8 +2,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 
-// TODO: 26/06/2021 test gameSpeed implement and test reverse behaviour
-// TODO: 7/3/2021 instead of many flows use only one with game settings or game state
 class Game(
     private val width: Int = 25, private val height: Int = 25,
     private val foodProducer: FoodProducer,
@@ -43,7 +41,7 @@ class Game(
 
     private var currentDirection = Direction.Right
     private var canGoThroughWalls = false
-    private var canDirectionBeChanged = true
+    private var canDirectionBeChanged = true //only one direction change per tick is allowed
 
     fun onDirectionChanged(newDirection: Direction) {
         if (!canDirectionBeChanged || currentDirection.isHorizontal() && newDirection.isHorizontal() || currentDirection.isVertical() && newDirection.isVertical()) {
@@ -64,17 +62,17 @@ class Game(
 
             snake.move(currentDirection, canGoThroughWalls)
 
-            val currentFood = food.value
+            val food = food.value
+            val hasEatenFood = hasEatenFood(snake, food)
 
-            val hasEatenFood = hasEatenFood(snake, currentFood.position)
             if (hasEatenFood) {
                 snake.grow(currentDirection)
-                updateGameSpeed(currentFood)
-                updateGoThroughWalls(currentFood)
+                updateGameSpeed(food)
+                updateCanGoThroughWalls(food)
                 spawnFood(snake)
             }
 
-            return@updateValue if (hasEatenFood && currentFood is Food.Reverse) {
+            return@updateValue if (hasEatenFood && food is Food.Reverse) {
                 snake.toList().reversed().also { reversedSnake ->
                     currentDirection = getMovingDirectionFor(reversedSnake)
                 }
@@ -94,6 +92,8 @@ class Game(
     }
 
     private fun getMovingDirectionFor(snakePositions: List<Position>): Direction {
+        require(snakePositions.size > 1)
+
         val head = snakePositions[0]
         val firstBodyPart = snakePositions[1]
 
@@ -120,19 +120,15 @@ class Game(
             is Food.Decelerate -> {
                 GameSpeed.Slower
             }
-            is Food.Normal,
-            is Food.GoThroughWalls,
-            is Food.Reverse -> {
-                GameSpeed.Normal
-            }
+            else -> GameSpeed.Normal
         }
     }
 
-    private fun updateGoThroughWalls(eatenFood: Food) {
+    private fun updateCanGoThroughWalls(eatenFood: Food) {
         canGoThroughWalls = eatenFood is Food.GoThroughWalls
     }
 
-    private fun hasEatenFood(snake: Snake, food: Position): Boolean = snake.head.position == food
+    private fun hasEatenFood(snake: Snake, food: Food): Boolean = snake.head.position == food.position
 
     private fun Position.isOutOfMap(): Boolean = this.x !in (0 until width) || this.y !in (0 until height)
 
@@ -140,7 +136,7 @@ class Game(
         return if (!canGoTroughWalls && this.willHitWall(direction)) {
             true
         } else {
-            val newHead = moveHead(this.head.position, direction)
+            val newHead = this.head.position.getNextPositionIn(direction)
             var running = this.head
             while (running.next != null) {
                 if (running.position == newHead) {
@@ -155,31 +151,17 @@ class Game(
 
     private fun Snake.move(direction: Direction, canGoTroughWalls: Boolean) {
         if (canGoTroughWalls && this.willHitWall(direction)) {
-            this.appendHead(moveHeadThroughWall(this.head.position, direction))
+            this.moveHeadThroughWallIn(direction)
         } else {
-            this.appendHead(moveHead(this.head.position, direction))
+            this.moveHeadIn(direction)
         }
         this.removeLast()
     }
 
-    private fun Snake.willHitWall(direction: Direction): Boolean {
-        val headPosition = this.head.position
-        return headPosition.copy(
-            x = when (direction) {
-                Direction.Left -> headPosition.x - 1
-                Direction.Right -> headPosition.x + 1
-                else -> headPosition.x
-            },
-            y = when (direction) {
-                Direction.Up -> headPosition.y - 1
-                Direction.Down -> headPosition.y + 1
-                else -> headPosition.y
-            }
-        ).isOutOfMap()
-    }
+    private fun Snake.willHitWall(direction: Direction): Boolean =
+        this.head.position.getNextPositionIn(direction).isOutOfMap()
 
     private fun Snake.grow(currentDirection: Direction) {
-        //todo test more carefully
         val snakeList = this.toList()
         val last = snakeList.last()
         if (snakeList.size == 1) {
@@ -203,31 +185,39 @@ class Game(
         }
     }
 
-    private fun moveHead(head: Position, direction: Direction): Position =
-        head.copy(
+    private fun Snake.moveHeadIn(direction: Direction) {
+        this.appendHead(this.head.position.getNextPositionIn(direction))
+    }
+
+    private fun Snake.moveHeadThroughWallIn(direction: Direction) {
+        this.appendHead(this.head.position.getNextPositionThroughTheWallIn(direction))
+    }
+
+    private fun Position.getNextPositionIn(direction: Direction): Position =
+        this.copy(
             x = when (direction) {
-                Direction.Left -> head.x - 1
-                Direction.Right -> head.x + 1
-                else -> head.x
+                Direction.Left -> this.x - 1
+                Direction.Right -> this.x + 1
+                else -> this.x
             },
             y = when (direction) {
-                Direction.Up -> head.y - 1
-                Direction.Down -> head.y + 1
-                else -> head.y
+                Direction.Up -> this.y - 1
+                Direction.Down -> this.y + 1
+                else -> this.y
             }
         )
 
-    private fun moveHeadThroughWall(head: Position, direction: Direction): Position =
-        head.copy(
+    private fun Position.getNextPositionThroughTheWallIn(direction: Direction): Position =
+        this.copy(
             x = when (direction) {
-                Direction.Left -> head.x - 1 + width
-                Direction.Right -> head.x + 1 - width
-                else -> head.x
+                Direction.Left -> this.x - 1 + width
+                Direction.Right -> this.x + 1 - width
+                else -> this.x
             },
             y = when (direction) {
-                Direction.Up -> head.y - 1 + height
-                Direction.Down -> head.y + 1 - height
-                else -> head.y
+                Direction.Up -> this.y - 1 + height
+                Direction.Down -> this.y + 1 - height
+                else -> this.y
             }
         )
 

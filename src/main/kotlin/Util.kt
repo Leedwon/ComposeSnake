@@ -13,4 +13,3 @@ fun positionFromIndex(index: Int, width: Int) =
 fun Position.toIndex(width: Int) = this.x + this.y * width
 
 fun Int.isEven() = this % 2 == 0
-fun Int.isOdd() = this % 2 != 0

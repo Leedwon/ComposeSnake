@@ -1,7 +1,6 @@
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestCoroutineScope
@@ -9,7 +8,6 @@ import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.lang.Thread.sleep
 
 class FoodProducerMock : FoodProducer {
 
@@ -76,15 +74,10 @@ class GameTest {
         assertEquals(expected, actual)
     }
 
-    private suspend fun Game.assertInitialSnakeState() {
-        this.assertAtPosition(0, 0, Game.Cell.Snake.Head)
-    }
-
     @Test
     fun `should have proper initial state`() = runBlockingTest {
         createGame()
 
-        game.assertInitialSnakeState()
         for (x in 3 until width) {
             for (y in 0 until height) {
                 game.assertAtPosition(x, y, Game.Cell.Empty)
@@ -98,8 +91,6 @@ class GameTest {
     fun `should move snake to default direction`() = runBlockingTest {
         createGame()
 
-        game.assertInitialSnakeState()
-
         game.tick()
 
         game.assertAtPosition(1, 0, Game.Cell.Snake.Head)
@@ -108,8 +99,6 @@ class GameTest {
     @Test
     fun `should turn right`() = runBlockingTest {
         createGame()
-
-        game.assertInitialSnakeState()
 
         game.turn(Game.Direction.Down)
         game.turn(Game.Direction.Right)
@@ -121,8 +110,6 @@ class GameTest {
     fun `should turn down`() = runBlockingTest {
         createGame()
 
-        game.assertInitialSnakeState()
-
         game.turn(Game.Direction.Down)
 
         game.assertAtPosition(0, 1, Game.Cell.Snake.Head)
@@ -131,8 +118,6 @@ class GameTest {
     @Test
     fun `should turn left`() = runBlockingTest {
         createGame()
-
-        game.assertInitialSnakeState()
 
         game.tick()
         game.turn(Game.Direction.Down)
@@ -144,8 +129,6 @@ class GameTest {
     @Test
     fun `should turn up`() = runBlockingTest {
         createGame()
-
-        game.assertInitialSnakeState()
 
         game.turn(Game.Direction.Down)
         game.turn(Game.Direction.Right)
@@ -169,8 +152,6 @@ class GameTest {
     fun `changing horizontal direction when going horizontally should have no effect`() = runBlockingTest {
         createGame()
 
-        game.assertInitialSnakeState()
-
         game.onDirectionChanged(Game.Direction.Right)
         game.onDirectionChanged(Game.Direction.Left)
 
@@ -182,8 +163,6 @@ class GameTest {
     @Test
     fun `changing vertical direction when going vertically should have no effect`() = runBlockingTest {
         createGame()
-
-        game.assertInitialSnakeState()
 
         game.onDirectionChanged(Game.Direction.Right)
         game.onDirectionChanged(Game.Direction.Down)
@@ -197,8 +176,6 @@ class GameTest {
     @Test
     fun `should make a square movement`() = runBlockingTest {
         createGame()
-
-        game.assertInitialSnakeState()
 
         game.turn(Game.Direction.Down)
         game.assertAtPosition(0, 1, Game.Cell.Snake.Head)
@@ -366,6 +343,62 @@ class GameTest {
             listOf(
                 Food.Decelerate(Position(2, 0)),
                 Food.Reverse(Position(3, 0)),
+            )
+        )
+
+        val collectingJob = collectGameSpeedValues()
+
+        game.turn(Game.Direction.Right)
+        game.turn(Game.Direction.Right)
+        game.turn(Game.Direction.Right)
+
+
+        assertEquals(
+            listOf(
+                Game.GameSpeed.Normal,
+                Game.GameSpeed.Slower,
+                Game.GameSpeed.Normal,
+            ),
+            gameSpeedValues
+        )
+        collectingJob.cancel()
+    }
+
+    @Test
+    fun `should reset game speed from faster to normal by eating GoThroughWall food`() = runBlockingTest {
+        createGame(initialFoodPosition = Position(1, 0))
+        foodProducerMock.mockFoodPositions(
+            listOf(
+                Food.Accelerate(Position(2, 0)),
+                Food.GoThroughWalls(Position(3, 0)),
+            )
+        )
+
+        val collectingJob = collectGameSpeedValues()
+
+        game.turn(Game.Direction.Right)
+        game.turn(Game.Direction.Right)
+        game.turn(Game.Direction.Right)
+
+
+        assertEquals(
+            listOf(
+                Game.GameSpeed.Normal,
+                Game.GameSpeed.Faster,
+                Game.GameSpeed.Normal,
+            ),
+            gameSpeedValues
+        )
+        collectingJob.cancel()
+    }
+
+    @Test
+    fun `should reset game speed from slower to normal by eating GoThroughWall food`() = runBlockingTest {
+        createGame(initialFoodPosition = Position(1, 0))
+        foodProducerMock.mockFoodPositions(
+            listOf(
+                Food.Decelerate(Position(2, 0)),
+                Food.GoThroughWalls(Position(3, 0)),
             )
         )
 
@@ -589,7 +622,7 @@ class GameTest {
     }
 
     @Test
-    fun `snake should go through wall`() = runBlockingTest {
+    fun `snake should go through right wall`() = runBlockingTest {
         foodProducerMock.mockFoodPositions(
             listOf(Food.GoThroughWalls(Position(2, 0)))
         )
@@ -600,11 +633,98 @@ class GameTest {
         }
 
         game.assertAtPosition(9,0, Game.Cell.Snake.Head)
+        game.assertAtPosition(8,0, Game.Cell.Snake.Body)
+        game.assertAtPosition(7,0, Game.Cell.Snake.Body)
 
         game.turn(Game.Direction.Right)
         game.assertAtPosition(0,0, Game.Cell.Snake.Head)
+        game.assertAtPosition(9,0, Game.Cell.Snake.Body)
+        game.assertAtPosition(8,0, Game.Cell.Snake.Body)
 
         game.tick()
         game.assertAtPosition(1,0, Game.Cell.Snake.Head)
+        game.assertAtPosition(0,0, Game.Cell.Snake.Body)
+        game.assertAtPosition(9,0, Game.Cell.Snake.Body)
+    }
+
+    @Test
+    fun `snake should go through left wall`() = runBlockingTest {
+        foodProducerMock.mockFoodPositions(
+            listOf(Food.GoThroughWalls(Position(2, 0)))
+        )
+        createGame(initialFoodPosition = Position(1,0))
+
+        game.turn(Game.Direction.Right)
+        game.turn(Game.Direction.Right)
+        game.turn(Game.Direction.Down)
+        game.turn(Game.Direction.Left)
+        game.turn(Game.Direction.Left)
+
+        game.assertAtPosition(0,1, Game.Cell.Snake.Head)
+        game.assertAtPosition(1,1, Game.Cell.Snake.Body)
+        game.assertAtPosition(2,1, Game.Cell.Snake.Body)
+
+        game.turn(Game.Direction.Left)
+        game.assertAtPosition(9,1, Game.Cell.Snake.Head)
+        game.assertAtPosition(0,1, Game.Cell.Snake.Body)
+        game.assertAtPosition(1,1, Game.Cell.Snake.Body)
+
+        game.tick()
+        game.assertAtPosition(8,1, Game.Cell.Snake.Head)
+        game.assertAtPosition(9,1, Game.Cell.Snake.Body)
+        game.assertAtPosition(0,1, Game.Cell.Snake.Body)
+    }
+
+    @Test
+    fun `snake should go through bottom wall`() = runBlockingTest {
+        foodProducerMock.mockFoodPositions(
+            listOf(Food.GoThroughWalls(Position(2, 0)))
+        )
+        createGame(initialFoodPosition = Position(1,0))
+
+        game.turn(Game.Direction.Right)
+        game.turn(Game.Direction.Right)
+        repeat(4) {
+            game.turn(Game.Direction.Down)
+        }
+
+        game.assertAtPosition(2,4, Game.Cell.Snake.Head)
+        game.assertAtPosition(2,3, Game.Cell.Snake.Body)
+        game.assertAtPosition(2,2, Game.Cell.Snake.Body)
+
+        game.turn(Game.Direction.Down)
+        game.assertAtPosition(2,0, Game.Cell.Snake.Head)
+        game.assertAtPosition(2,4, Game.Cell.Snake.Body)
+        game.assertAtPosition(2,3, Game.Cell.Snake.Body)
+
+        game.tick()
+        game.assertAtPosition(2,1, Game.Cell.Snake.Head)
+        game.assertAtPosition(2,0, Game.Cell.Snake.Body)
+        game.assertAtPosition(2,4, Game.Cell.Snake.Body)
+    }
+
+    @Test
+    fun `snake should go through top wall`() = runBlockingTest {
+        foodProducerMock.mockFoodPositions(
+            listOf(Food.GoThroughWalls(Position(2, 0)))
+        )
+        createGame(initialFoodPosition = Position(1,0))
+
+        game.turn(Game.Direction.Right)
+        game.turn(Game.Direction.Right)
+
+        game.assertAtPosition(2,0, Game.Cell.Snake.Head)
+        game.assertAtPosition(1,0, Game.Cell.Snake.Body)
+        game.assertAtPosition(0,0, Game.Cell.Snake.Body)
+
+        game.turn(Game.Direction.Up)
+        game.assertAtPosition(2,4, Game.Cell.Snake.Head)
+        game.assertAtPosition(2,0, Game.Cell.Snake.Body)
+        game.assertAtPosition(1,0, Game.Cell.Snake.Body)
+
+        game.tick()
+        game.assertAtPosition(2,3, Game.Cell.Snake.Head)
+        game.assertAtPosition(2,4, Game.Cell.Snake.Body)
+        game.assertAtPosition(2,0, Game.Cell.Snake.Body)
     }
 }
